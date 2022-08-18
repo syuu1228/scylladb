@@ -27,6 +27,7 @@ Options:
   --sysconfdir /etc/sysconfig   specify sysconfig directory name
   --supervisor             enable supervisor to manage scylla processes
   --supervisor-log-to-stdout logging to stdout on supervisor
+  --debuginfo               install debuginfo
   --help                   this helpful message
 EOF
     exit 1
@@ -42,6 +43,7 @@ housekeeping=false
 nonroot=false
 supervisor=false
 supervisor_log_to_stdout=false
+debuginfo=false
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -75,6 +77,10 @@ while [ $# -gt 0 ]; do
             ;;
         "--supervisor-log-to-stdout")
             supervisor_log_to_stdout=true
+            shift 1
+            ;;
+        "--debuginfo")
+            debuginfo=true
             shift 1
             ;;
         "--help")
@@ -148,6 +154,9 @@ if $supervisor; then
 fi
 if $supervisor_log_to_stdout; then
     scylla_args+=(--supervisor-log-to-stdout)
+fi
+if $debuginfo; then
+    scylla_args+=(--debuginfo)
 fi
 
 (cd $(readlink -f scylla); ./install.sh --root "$root" --prefix "$prefix" --python3 "$python3" --sysconfdir "$sysconfdir" ${scylla_args[@]})
