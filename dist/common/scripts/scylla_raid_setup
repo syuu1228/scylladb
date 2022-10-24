@@ -42,6 +42,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    raise Exception('Test exception')
     root = args.root.rstrip('/')
     if args.volume_role == 'all':
         mount_at=root
