@@ -721,10 +721,11 @@ class ScyllaClusterManager:
         # API
         # NOTE: need to make a safe temp dir as tempfile can't make a safe temp sock name
         self.manager_dir: str = tempfile.mkdtemp(prefix="manager-", dir=base_dir)
-        self.sock_path: str = f"{self.manager_dir}/api"
+        self.sock_path: str = f"/tmp/api"
         app = aiohttp.web.Application()
         self._setup_routes(app)
         self.runner = aiohttp.web.AppRunner(app)
+        print(f'sock_path:{self.sock_path}')
 
     async def start(self) -> None:
         """Get first cluster, setup API"""
