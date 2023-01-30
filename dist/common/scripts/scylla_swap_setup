@@ -32,6 +32,8 @@ if __name__ == '__main__':
                         help='specify swapfile size in GB')
     parser.add_argument('--swap-size-bytes', type=int,
                         help='specify swapfile size in bytes')
+    parser.add_argument('--overwrite-unit-file', action='store_true',
+                        help='overwrite existing systemd unit file')
     args = parser.parse_args()
 
     if swap_exists():
@@ -75,14 +77,14 @@ if __name__ == '__main__':
     if swapfile.exists():
         print('swapfile {} already exists'.format(swapfile))
         sys.exit(1)
+    swapunit_bn = out('systemd-escape -p --suffix=swap {}'.format(swapfile))
+    swapunit = Path('/etc/systemd/system/{}'.format(swapunit_bn))
+    if not args.overwrite_unit_file and swapunit.exists():
+        print('swap unit {} already exists'.format(swapunit))
+        sys.exit(1)
     run('dd if=/dev/zero of={} bs=1M count={}'.format(swapfile, swapsize_mb), shell=True, check=True)
     swapfile.chmod(0o600)
     run('mkswap -f {}'.format(swapfile), shell=True, check=True)
-    swapunit_bn = out('systemd-escape -p --suffix=swap {}'.format(swapfile))
-    swapunit = Path('/etc/systemd/system/{}'.format(swapunit_bn))
-    if swapunit.exists():
-        print('swap unit {} already exists'.format(swapunit))
-        sys.exit(1)
     unit_data = '''
 [Unit]
 Description=swapfile
