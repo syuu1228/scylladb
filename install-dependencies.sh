@@ -119,6 +119,7 @@ fedora_python3_packages=(
     python3-distro
     python3-click
     python3-six
+    python3-pyudev
 )
 
 pip_packages=(
