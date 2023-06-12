@@ -221,6 +221,9 @@ WantedBy=multi-user.target
         dpath = '{}/{}'.format(root, d)
         os.makedirs(dpath, exist_ok=True)
         os.chown(dpath, uid, gid)
+    os.makedirs(f'{root}/.config/pkcs11/modules', exist_ok=True)
+    os.symlink(scyllasharedir() + '/p11-kit/modules/p11-kit-trust.module', f'{root}/.config/pkcs11/modules/p11-kit-trust.module')
+    run(f'chown -R scylla:scylla {root}/.config')
 
     if is_debian_variant():
         run('update-initramfs -u', shell=True, check=True)

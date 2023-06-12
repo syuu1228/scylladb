@@ -14,6 +14,10 @@ fi
 # Install capabilities.conf when AmbientCapabilities supported
 . /etc/os-release
 
+is_redhat_variant() {
+    [ -f /etc/redhat-release ]
+}
+
 # the command below will still work in systems without systemctl (like docker) and across all
 # versions of systemd. We will set the version to 0 if systemctl is not found and then be able
 # to use that in tests.
@@ -72,6 +76,14 @@ RuntimeMaxSec=infinity
 TimeoutSec=infinity
 EOS
     fi
+fi
+
+mkdir -p /var/lib/scylla/.config/pkcs11/modules
+ln -sf /opt/scylladb/share/p11-kit/modules/p11-kit-trust.module /var/lib/scylla/.config/pkcs11/modules/
+chown -R scylla:scylla /var/lib/scylla/.config
+if ! is_redhat_varaint && ! -e /usr/share/pki/ca-trust-source; then
+    mkdir -p /usr/share/pki
+    ln -sf /opt/scylladb/share/pki/ca-trust-source /usr/share/pki/
 fi
 
 systemctl --system daemon-reload >/dev/null || true

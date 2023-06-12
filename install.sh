@@ -303,6 +303,7 @@ if ! $nonroot; then
     rsysconfdir=$(realpath -m "$root/$sysconfdir")
     rusr=$(realpath -m "$root/usr")
     rsystemd=$(realpath -m "$rusr/lib/systemd/system")
+    rshare="$rprefix/share"
     rdoc="$rprefix/share/doc"
     rdata=$(realpath -m "$root/var/lib/scylla")
     rhkdata=$(realpath -m "$root/var/lib/scylla-housekeeping")
@@ -310,6 +311,7 @@ else
     retc="$rprefix/etc"
     rsysconfdir="$rprefix/$sysconfdir"
     rsystemd="$HOME/.config/systemd/user"
+    rshare="$rprefix/share"
     rdoc="$rprefix/share/doc"
     rdata="$rprefix"
 fi
@@ -380,7 +382,7 @@ for file in dist/common/scylla.d/*.conf; do
     installconfig 644 "$file" "$retc"/scylla.d
 done
 
-install -d -m755 "$retc"/scylla "$rprefix/bin" "$rprefix/libexec" "$rprefix/libreloc" "$rprefix/scripts" "$rprefix/bin"
+install -d -m755 "$retc"/scylla "$rprefix/bin" "$rprefix/libexec" "$rprefix/libreloc" "$rprefix/scripts" "$rprefix/bin" "$rprefix/libreloc/pkcs11"
 if ! $without_systemd; then
     install -m644 dist/common/systemd/scylla-fstrim.service -Dt "$rsystemd"
     install -m644 dist/common/systemd/scylla-housekeeping-daily.service -Dt "$rsystemd"
@@ -391,8 +393,12 @@ if ! $without_systemd; then
 fi
 install -m755 seastar/scripts/seastar-cpu-map.sh -Dt "$rprefix"/scripts
 install -m755 seastar/dpdk/usertools/dpdk-devbind.py -Dt "$rprefix"/scripts
-install -m755 libreloc/* -Dt "$rprefix/libreloc"
-for lib in libreloc/*; do
+for lib in $(find libreloc -maxdepth 1 -type f); do
+    install -m755 $lib -Dt "$rprefix/libreloc"
+    remove_rpath "$rprefix/$lib"
+done
+for lib in $(find libreloc/pkcs11 -maxdepth 1 -type f); do
+    install -m755 $lib -Dt "$rprefix/libreloc/pkcs11"
     remove_rpath "$rprefix/$lib"
 done
 # some files in libexec are symlinks, which "install" dereferences
@@ -403,6 +409,36 @@ for bin in libexec/*; do
     adjust_bin "${bin#libexec/}"
 done
 install -m644 ubsan-suppressions.supp -Dt "$rprefix/libexec"
+
+install -d -m755 "$rshare"/pki
+cp -r ca-trust-source "$rshare"/pki
+install -d -m755 "$rshare"/p11-kit/modules
+cat << EOS > "$rshare"/p11-kit/modules/p11-kit-trust.module
+# See pkcs11.conf(5) to understand this file
+
+# This is a module config for the 'included' p11-kit trust module
+module: $prefix/libreloc/pkcs11/p11-kit-trust.so
+
+# This setting affects the order that trust policy and other information
+# is looked up when going across various modules. Other trust policy modules
+# need to specify the priority where they slot into things.
+priority: 1
+
+# Mark this module as a viable source of trust policy information
+trust-policy: yes
+
+# This is for drop-in compatibility with glib-networking and gcr. Those
+# projects used this non-standard attribute to denote slots to use to
+# retrieve trust information.
+x-trust-lookup: pkcs11:library-description=PKCS%2311%20Kit%20Trust%20Module
+
+# Prevent this module being loaded by the proxy module
+disable-in: p11-kit-proxy
+
+# This will be overwritten by appending "verbose=yes", if the trust
+# command is called with the -v option.
+x-init-reserved:
+EOS
 
 install -d -m755 "$rdoc"/scylla
 install -m644 README.md -Dt "$rdoc"/scylla/

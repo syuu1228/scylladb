@@ -90,6 +90,9 @@ def datadir_p():
 def scyllabindir_p():
     return scylladir_p() / 'bin'
 
+def scyllasharedir_p():
+    return scylladir_p() / 'share'
+
 def sysconfdir_p():
     return Path(SYSCONFDIR)
 
@@ -110,6 +113,9 @@ def datadir():
 
 def scyllabindir():
     return str(scyllabindir_p())
+
+def scyllasharedir():
+    return str(scyllasharedir_p())
 
 def sysconfdir():
     return str(sysconfdir_p())

@@ -107,6 +107,8 @@ for exe in executables:
 
 # manually add libthread_db for debugging thread
 libs.update({'libthread_db.so.1': os.path.realpath('/lib64/libthread_db.so')})
+# p11
+libs.update({'pkcs11/p11-kit-trust.so': '/lib64/pkcs11/p11-kit-trust.so'})
 
 ld_so = libs['ld.so']
 
@@ -131,6 +133,8 @@ os.makedirs(f'build/{SCYLLA_DIR}')
 with open(f'build/{SCYLLA_DIR}/.relocatable_package_version', 'w') as f:
     f.write('3.0\n')
 ar.add(f'build/{SCYLLA_DIR}/.relocatable_package_version', arcname='.relocatable_package_version')
+os.symlink('./pkcs11/p11-kit-trust.so', f'build/{SCYLLA_DIR}/libnssckbi.so')
+ar.reloc_add(f'build/{SCYLLA_DIR}/libnssckbi.so', arcname='libreloc/libnssckbi.so')
 
 for exe in executables_scylla:
     basename = os.path.basename(exe)
@@ -179,6 +183,8 @@ ar.reloc_add('build/node_exporter/LICENSE', arcname='node_exporter/LICENSE')
 ar.reloc_add('build/node_exporter/NOTICE', arcname='node_exporter/NOTICE')
 ar.reloc_add('ubsan-suppressions.supp')
 ar.reloc_add('fix_system_distributed_tables.py')
+
+ar.reloc_add('/usr/share/pki/ca-trust-source', arcname='ca-trust-source')
 
 # Complete the tar output, and wait for the gzip process to complete
 ar.close()

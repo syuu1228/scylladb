@@ -79,6 +79,8 @@ defines=()
 install_arg="--housekeeping"
 %endif
 ./install.sh --packaging --root "$RPM_BUILD_ROOT" $install_arg
+# Do not want to install ca-trust-souce, since it's only for debian
+rm -rf "$RPM_BUILD_ROOT"/opt/scylladb/share/pki
 
 %pre server
 getent group scylla || /usr/sbin/groupadd scylla 2> /dev/null || :
@@ -117,6 +119,7 @@ rm -rf $RPM_BUILD_ROOT
 %config(noreplace) %{_sysconfdir}/sysconfig/scylla-housekeeping
 %attr(0755,root,root) %dir %{_sysconfdir}/scylla.d
 %config(noreplace) %{_sysconfdir}/scylla.d/*.conf
+/opt/scylladb/share/p11-kit/modules/*
 /opt/scylladb/share/doc/scylla/*
 %{_unitdir}/scylla-fstrim.service
 %{_unitdir}/scylla-housekeeping-daily.service
