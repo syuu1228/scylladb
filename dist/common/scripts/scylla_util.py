@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import yaml
 import sys
+import argparse
 from pathlib import Path, PurePath
 from subprocess import run, DEVNULL
 
@@ -81,6 +82,12 @@ def etcdir_p():
     else:
         return Path('/etc')
 
+def systemd_dropindir_p():
+    if is_nonroot():
+        return Path.home() / '.config/systemd/user'
+    else:
+        return Path('/etc/systemd/system')
+
 def datadir_p():
     if is_nonroot():
         return scylladir_p()
@@ -104,6 +111,9 @@ def bindir():
 
 def etcdir():
     return str(etcdir_p())
+
+def systemd_dropindir():
+    return str(systemd_dropindir_p())
 
 def datadir():
     return str(datadir_p())
@@ -142,13 +152,8 @@ def is_suse_variant():
     return ('suse' in d)
 
 def is_developer_mode():
-    # non-advancing comment matcher
-    _nocomment = r"^\s*(?!#)"
-    # non-capturing grouping
-    _scyllaeq = r"(?:\s*|=)"
-    f = open(etcdir() + "/scylla.d/dev-mode.conf", "r")
-    pattern = re.compile(_nocomment + r".*developer-mode" + _scyllaeq + "(1|true)")
-    return len([x for x in f if pattern.match(x)]) >= 1
+    conf = ScyllaArgsConf()
+    return conf.args.developer_mode
 
 def get_text_from_path(fpath):
     board_vendor_path = Path(fpath)
@@ -445,3 +450,35 @@ class sysconfig_parser:
     def commit(self):
         with open(self._filename, 'w') as f:
             f.write(self._data)
+
+class ScyllaArgsConf:
+    def __init__(self):
+        self._conf_path = systemd_dropindir_p() / 'scylla-server.service.d/scylla_args.conf'
+        conf = configparser.ConfigParser(allow_no_value=True, delimiters=('='), strict=False, empty_lines_in_values=False)
+        conf.optionxform = str
+        conf.read(self._conf_path)
+        exec_start = conf['Service']['ExecStart'].split()
+        arg_parser = argparse.ArgumentParser(prog='ScyllaArgsConf')
+        arg_parser.add_argument('--developer-mode', type=int)
+        arg_parser.add_argument('--cpuset')
+        arg_parser.add_argument('-c', '--smp', type=int)
+        arg_parser.add_argument('--lock-memory', type=int)
+        arg_parser.add_argument('-m', '--memory')
+        arg_parser.add_argument('--reserve-memory')
+        arg_parser.add_argument('--io-properties-file')
+        self.args, self._unknown_args = arg_parser.parse_known_args(exec_start)
+
+    def commit(self):
+        exec_start = self._unknown_args
+        for k, v in self.args.__dict__.items():
+            if not v:
+                continue
+            if type(v) == bool:
+                exec_start += ['--' + k.replace('_', '-')]
+            else:
+                exec_start += ['--' + k.replace('_', '-'), v]
+        exec_start_str = ' '.join(map(str, exec_start))
+        with self._conf_path.open('w') as f:
+            f.write('[Service]\n')
+            f.write('ExecStart=\n')
+            f.write(f'ExecStart={exec_start_str}\n')

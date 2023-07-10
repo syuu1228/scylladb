@@ -113,10 +113,8 @@ rm -rf $RPM_BUILD_ROOT
 %files server
 %defattr(-,root,root)
 
-%config(noreplace) %{_sysconfdir}/sysconfig/scylla-server
 %config(noreplace) %{_sysconfdir}/sysconfig/scylla-housekeeping
 %attr(0755,root,root) %dir %{_sysconfdir}/scylla.d
-%config(noreplace) %{_sysconfdir}/scylla.d/*.conf
 /opt/scylladb/share/doc/scylla/*
 %{_unitdir}/scylla-fstrim.service
 %{_unitdir}/scylla-housekeeping-daily.service
@@ -150,6 +148,7 @@ rm -rf $RPM_BUILD_ROOT
 %ghost /etc/systemd/system/scylla-server.service.d/capabilities.conf
 %ghost /etc/systemd/system/scylla-server.service.d/mounts.conf
 /etc/systemd/system/scylla-server.service.d/dependencies.conf
+/etc/systemd/system/scylla-server.service.d/scylla_args.conf
 %ghost %config /etc/systemd/system/var-lib-systemd-coredump.mount
 %ghost /etc/systemd/system/scylla-cpupower.service
 %ghost %config /etc/systemd/system/var-lib-scylla.mount

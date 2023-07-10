@@ -1,6 +1,5 @@
-etc/default/scylla-server
 etc/default/scylla-housekeeping
-etc/scylla.d/*.conf
+etc/scylla.d/
 opt/scylladb/share/doc/scylla/*
 opt/scylladb/share/doc/scylla/licenses/
 usr/lib/systemd/system/*.timer
@@ -27,6 +26,6 @@ var/lib/scylla/view_hints
 var/lib/scylla/coredump
 var/lib/scylla-housekeeping
 etc/systemd/system/scylla-server.service.d/dependencies.conf
-etc/systemd/system/scylla-server.service.d/sysconfdir.conf
+etc/systemd/system/scylla-server.service.d/scylla_args.conf
 etc/systemd/system/scylla-housekeeping-daily.service.d/sysconfdir.conf
 etc/systemd/system/scylla-housekeeping-restart.service.d/sysconfdir.conf

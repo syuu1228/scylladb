@@ -375,10 +375,6 @@ fi
 install -m755 -d "$rprefix"
 install -m755 -d "$retc/scylla.d"
 installconfig 644 dist/common/sysconfig/scylla-housekeeping "$rsysconfdir"
-installconfig 644 dist/common/sysconfig/scylla-server "$rsysconfdir"
-for file in dist/common/scylla.d/*.conf; do
-    installconfig 644 "$file" "$retc"/scylla.d
-done
 
 install -d -m755 "$retc"/scylla "$rprefix/bin" "$rprefix/libexec" "$rprefix/libreloc" "$rprefix/scripts" "$rprefix/bin"
 if ! $without_systemd; then
@@ -441,13 +437,12 @@ EOS
 if ! $nonroot && ! $without_systemd; then
     install -d -m755 "$retc"/systemd/system/scylla-server.service.d
     install -m644 dist/common/systemd/scylla-server.service.d/dependencies.conf -Dt "$retc"/systemd/system/scylla-server.service.d
-    if [ "$sysconfdir" != "/etc/sysconfig" ]; then
-        cat << EOS > "$retc"/systemd/system/scylla-server.service.d/sysconfdir.conf
+    cat << EOS > "$retc"/systemd/system/scylla-server.service.d/scylla_args.conf
 [Service]
-EnvironmentFile=
-EnvironmentFile=$sysconfdir/scylla-server
-EnvironmentFile=/etc/scylla.d/*.conf
+ExecStart=
+ExecStart=/usr/bin/scylla --log-to-syslog 1 --log-to-stdout 0 --default-log-level info --network-stack posix
 EOS
+    if [ "$sysconfdir" != "/etc/sysconfig" ]; then
         for i in daily restart; do
             install -d -m755 "$retc"/systemd/system/scylla-housekeeping-$i.service.d
             cat << EOS > "$retc"/systemd/system/scylla-housekeeping-$i.service.d/sysconfdir.conf
@@ -465,7 +460,7 @@ elif ! $without_systemd; then
 Envronment=SCYLLA_HOME=$rdata SCYLLA_CONF=$retc/scylla
 ExecStartPre=
 ExecStart=
-ExecStart=$rprefix/bin/scylla \$SCYLLA_ARGS \$SEASTAR_IO \$DEV_MODE \$CPUSET
+ExecStart=$rprefix/bin/scylla --log-to-syslog 1 --log-to-stdout 0 --default-log-level info --network-stack posix
 User=
 EOS
     else
@@ -475,7 +470,7 @@ Envronment=SCYLLA_HOME=$rdata SCYLLA_CONF=$retc/scylla
 ExecStartPre=
 ExecStartPre=$rprefix/scripts/scylla_logrotate
 ExecStart=
-ExecStart=$rprefix/bin/scylla \$SCYLLA_ARGS \$SEASTAR_IO \$DEV_MODE \$CPUSET
+ExecStart=$rprefix/bin/scylla --log-to-syslog 1 --log-to-stdout 0 --default-log-level info --network-stack posix
 User=
 StandardOutput=
 StandardOutput=file:$rprefix/scylla-server.log

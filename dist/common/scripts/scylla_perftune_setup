@@ -151,8 +151,12 @@ if __name__ == '__main__':
     if args.nic and not is_valid_nic(args.nic):
             print(f'NIC {args.nic} not found.')
             sys.exit(1)
-    if not args.setup_nic_and_disks and not args.set_clocksource and not args.disable_wirteback_cache and not args.disable:
+    if not args.setup_nic_and_disks and not args.set_clocksource and not args.disable_writeback_cache and not args.disable:
         print('Non of perftune setup options are enabled.')
+        parser.print_help()
+        sys.exit(1)
+    if args.setup_nic_and_disks and not args.nic:
+        print('NIC is not specified.')
         parser.print_help()
         sys.exit(1)
     if args.disable:

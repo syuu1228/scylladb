@@ -27,20 +27,15 @@ if __name__ == '__main__':
         sys.exit(1)
 
     cpuset = smp = None
-    try:
-        cfg = sysconfig_parser('/etc/scylla.d/cpuset.conf')
-        line = cfg.get('CPUSET')
-        cpuset_args = parser.parse_args(line.split())
-        cpuset = cpuset_args.cpuset
-        smp = cpuset_args.smp
-    except:
-        pass
+
+    conf = ScyllaArgsConf()
+    cpuset = conf.args.cpuset
+    smp = conf.args.smp
+
+    conf.args.cpuset = args.cpuset
+    conf.args.smp = args.smp
+    conf.commit()
+
     if cpuset != args.cpuset or smp != args.smp:
         if os.path.exists('/etc/scylla.d/perftune.yaml'):
             os.remove('/etc/scylla.d/perftune.yaml')
-
-        cfg.set('CPUSET', '{cpuset}{smp}'.format( \
-                cpuset='--cpuset {} '.format(args.cpuset) if args.cpuset else '', \
-                smp='--smp {} '.format(args.smp) if args.smp else '' \
-                ))
-        cfg.commit()
