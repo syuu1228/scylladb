@@ -2,3 +2,4 @@
 build
 seastar/build
 testlog
+!build/optimized_clang
