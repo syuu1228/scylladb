@@ -1,5 +1,10 @@
 #!/bin/bash -e
 
+. /etc/os-release
+
+is_fedora=$(echo $ID | grep -oi fedora)
+
+
 bv=$(buildah --version)
 if (( $? != 0 )); then
     echo install buildah 1.19.3 or later
@@ -22,28 +27,61 @@ if (( ! ok )); then
     exit 1
 fi
 
-archs=(amd64 arm64)
+if !(type git-archive-all > /dev/null 2>&1); then
+    if [ "$is_fedora" ]; then
+        sudo dnf install -y git-archive-all
+    else
+        echo install git-archive-all
+        exit 1
+    fi
+fi
 
 # docker arch has a diffrent spelling than uname arch
-declare -A arch_unames=(
-    [amd64]=x86_64
-    [arm64]=aarch64
+declare -A docker_arch=(
+    [x86_64]=amd64
+    [aarch64]=arm64
     [s390x]=s390x
 )
 
-for arch in "${archs[@]}"; do
-    # translate from docker arch to uname arch
-    arch_uname="${arch_unames[$arch]}"
-    if [[ "$(uname -m)" == "${arch_uname}" ]]; then
-        continue
-    fi
-    if [[ ! -f  /proc/sys/fs/binfmt_misc/qemu-"${arch_uname}" ]]; then
-        echo install qemu-user-static
-        exit 1
-    fi
+usage() {
+    cat <<EOF
+
+Options:
+  --clang-install          build and install an optimized clang compiler binary.
+  --clang-build            build an optimized clang compiler binary and keep in the host directory
+  --clang-install-prebuilt install prebuilt optimized clang compiler binary.
+  --help                   this help snippet
+EOF
+    exit 1
+}
+
+CLANG_CMD="--build-arg CLANG_BUILD=SKIP"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        "--clang-install")
+        CLANG_CMD="--build-arg CLANG_BUILD=INSTALL"
+            shift 1
+            ;;
+        "--clang-build")
+        CLANG_CMD="--build-arg CLANG_BUILD=BUILD"
+            shift 1
+            ;;
+        "--clang-install-prebuilt")
+        CLANG_CMD="--build-arg CLANG_BUILD=INSTALL_PREBUILT"
+            shift 1
+            ;;
+        "--help")
+            usage
+            ;;
+        *)
+            usage
+            ;;
+    esac
 done
 
-buildah bud "${archs[@]/#/--platform=linux/}" --jobs 0 --squash --no-cache --pull -f tools/toolchain/Dockerfile --manifest "$(<tools/toolchain/image)"
+mkdir -p build/optimized_clang
+git-archive-all --prefix="" build/optimized_clang/scylla-archive.tar
+buildah bud --platform="linux/${docker_arch[$(arch)]}" --jobs 0 --squash --no-cache --pull -f tools/toolchain/Dockerfile --manifest "$(<tools/toolchain/image)" -v $(readlink -f build/optimized_clang):/optimized_clang:Z ${CLANG_CMD}
 
 echo "Done building $(<tools/toolchain/image). You can now test it, and push with"
 echo ""
