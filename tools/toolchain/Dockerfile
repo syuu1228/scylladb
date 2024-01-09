@@ -15,6 +15,7 @@ ADD ./tools/jmx/install-dependencies.sh ./tools/jmx/
 ADD ./tools/java/install-dependencies.sh ./tools/java/
 ADD ./tools/toolchain/clang_lto_pgo.sh ./
 ADD ./tools/toolchain/system-auth ./
+ADD ./build/scylla-archive.tar ./scylla/
 RUN dnf -y update \
     && dnf -y install 'dnf-command(copr)' \
     && dnf -y install ccache \
@@ -26,5 +27,5 @@ RUN dnf -y update \
 RUN mkdir -p /root/.m2/repository
 ENV JAVA8_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 ENV CLANG_ARCH=$TARGETARCH
-RUN chmod +x ./clang_lto_pgo.sh && ./clang_lto_pgo.sh
+RUN bash -x -e ./clang_lto_pgo.sh
 CMD /bin/bash

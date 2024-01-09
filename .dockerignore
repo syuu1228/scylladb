@@ -2,3 +2,4 @@
 build
 seastar/build
 testlog
+!build/scylla-archive.tar

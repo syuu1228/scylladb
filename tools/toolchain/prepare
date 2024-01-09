@@ -1,5 +1,9 @@
 #!/bin/bash -e
 
+. /etc/os-release
+
+is_fedora=$(echo $ID | grep -oi fedora)
+
 bv=$(buildah --version)
 if (( $? != 0 )); then
     echo install buildah 1.19.3 or later
@@ -22,7 +26,16 @@ if (( ! ok )); then
     exit 1
 fi
 
-archs=(amd64 arm64)
+if !(type git-archive-all > /dev/null 2>&1); then
+    if [ "$is_fedora" ]; then
+        dnf install -y git-archive-all
+    else
+        echo install git-archive-all
+        exit 1
+    fi
+fi
+
+archs=(amd64)
 
 # docker arch has a diffrent spelling than uname arch
 declare -A arch_unames=(
@@ -54,6 +67,8 @@ EOF
     exit 1
 }
 
+
+git-archive-all --prefix="" build/scylla-archive.tar
 CLANG_CMD="--build-arg CLANG_BUILD=SKIP"
 while [ $# -gt 0 ]; do
     case "$1" in

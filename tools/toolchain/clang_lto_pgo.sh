@@ -3,13 +3,11 @@
 if [ -z "${CLANG_ARCH}" ]; then
     echo "CLANG_ARCH is not defined"
 elif [ "${CLANG_ARCH}" != "amd64" ]; then
-    CLANG_ARCH=Aarch64
-    LLVM_TARGET="-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=Aarch64"
-    echo "Can't get ARM to work yet, exiting"
-    exit 1
+    CLANG_ARCH=AArch64
+    LLVM_TARGET="-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=AArch64;WebAssembly"
 else
     CLANG_ARCH=X86
-    LLVM_TARGET=""
+    LLVM_TARGET="-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly"
 fi
 
 if [ -z "${CLANG_BUILD}" ]; then
@@ -39,22 +37,18 @@ cd "${DIR}"
 STAGE0_BIN=$DIR/stage-0-${CLANG_ARCH}/build/bin
 STAGE1_BIN=$DIR/stage-1-${CLANG_ARCH}/build/bin
 
-# Which Scylla branch to train on
-#SCYLLA_BRANCH=scylla-5.2.0-rc3
-SCYLLA_BRANCH=master
-
 # Which LLVM release to build in order to compile Scylla
-LLVM_SCYLLA_TAG=16.0.6
+LLVM_SCYLLA_TAG=17.0.6
 
 # Which LLVM release to use to build clang (stage 0).
-LLVM_CLANG_TAG=16.0.6
+LLVM_CLANG_TAG=17.0.6
 
 # Clone, patch and bootstrap the newest Clang and BOLT.
 git clone https://github.com/llvm/llvm-project --branch llvmorg-${LLVM_CLANG_TAG} --depth=1 stage-0-${CLANG_ARCH}
 cd stage-0-${CLANG_ARCH}
 
 USE_CURRENT_COMPILER=(-DCMAKE_C_COMPILER="/usr/bin/clang" -DCMAKE_CXX_COMPILER="/usr/bin/clang++" -DLLVM_USE_LINKER="/usr/bin/ld")
-COMMON_OPTS=(-DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=${CLANG_ARCH} -DLLVM_TARGET_ARCH=${CLANG_ARCH} -G Ninja -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF)
+COMMON_OPTS=(-DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=all -DLLVM_TARGET_ARCH=${CLANG_ARCH} -G Ninja -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF)
 SCYLLA_OPTS=(--mode=dev --c-compiler="$STAGE1_BIN/clang" --compiler="$STAGE1_BIN/clang++" --disable-dpdk)
 
 echo "stage-0: build the bootstrapped compiler"
@@ -78,14 +72,8 @@ time cmake --build build -- bin/clang
 echo "cmake stage-1 output:"
 ls -l $DIR/stage-1-${CLANG_ARCH}/build/bin/
 
-cd ../
-# Download the scylla codebase for training.
-# Scylla's dependencies are already installed.
-git clone https://github.com/scylladb/scylla --branch ${SCYLLA_BRANCH} --depth=1 scylla-${CLANG_ARCH}
-git -C scylla-${CLANG_ARCH} submodule update --init --depth=1 --recursive -f
-
 # 1st ScyllaDB compilation: gather a clang profile for PGO
-cd scylla-${CLANG_ARCH}
+cd ../scylla
 rm -rf build build.ninja
 ./configure.py "${SCYLLA_OPTS}"
 time ninja build/dev/scylla
@@ -99,7 +87,7 @@ cmake -B build -S llvm "${USE_NEW_COMPILER[@]}" "${COMMON_OPTS[@]}" "${NEW_COMMO
 time cmake --build build -- bin/clang
 
 # 2nd compilation: gathering a clang profile for CSPGO
-cd ../scylla-${CLANG_ARCH}
+cd ../scylla
 rm -rf build build.ninja
 ./configure.py "${SCYLLA_OPTS}"
 time ninja build/dev/scylla
@@ -120,7 +108,7 @@ time cmake --build build -- bin/clang
 #$STAGE0_BIN/llvm-bolt build/bin/clang.prebolt -o build/bin/clang --instrument --instrumentation-file=$DIR/stage-1-${CLANG_ARCH}/build/profiles/prof --instrumentation-file-append-pid --conservative-instrumentation
 
 #3rd ScyllaDB compilation: gathering a clang profile for BOLT
-#cd ../scylla-${CLANG_ARCH}
+#cd ../scylla
 #rm -rf build build.ninja
 #./configure.py "${SCYLLA_OPTS}"
 #time ninja build/dev/scylla
@@ -130,17 +118,17 @@ time cmake --build build -- bin/clang
 #$STAGE0_BIN/merge-fdata build/profiles/*.fdata > prof.fdata
 #$STAGE0_BIN/llvm-bolt build/bin/clang.prebolt -o build/bin/clang --data=prof.fdata --reorder-functions=hfsort --reorder-blocks=ext-tsp --split-functions --split-all-cold --split-eh --dyno-stats
 
-rm -rf ../scylla-0-${CLANG_ARCH}
+rm -rf ../scylla
 
 # Then use the below to replace your inferior compiler
 if [ "${CLANG_BUILD}" = "INSTALL" ]; then
-    sudo mv /usr/bin/clang-16 /usr/bin/clang-16.old || 1
-    sudo cp $STAGE1_BIN/clang-16 /usr/bin
+    sudo mv /usr/bin/clang-17 /usr/bin/clang-17.old |:
+    sudo cp $STAGE1_BIN/clang-17 /usr/bin
     echo "optimizaed clang was copied to /usr/bin"
 else
-    sudo cp $STAGE1_BIN/clang-16 $DIR/clang-16-${CLANG_ARCH}
+    sudo cp $STAGE1_BIN/clang-17 $DIR/clang-17-${CLANG_ARCH}
     echo "optimized clang was copied"
 fi
 
 cd ../
-rm -rf $DIR/stage-1-${CLANG_ARCH} $DIR/scylla-${CLANG_ARCH}
+rm -rf $DIR/stage-1-${CLANG_ARCH} $DIR/scylla
