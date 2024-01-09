@@ -8,6 +8,7 @@ FROM docker.io/fedora:38
 # To change the argument, use --build-arg CLANG_BUILD=BUILD|INSTALL
 ARG CLANG_BUILD=""
 ARG TARGETARCH
+ARG SCYLLA_REVISION
 
 ADD ./install-dependencies.sh ./
 ADD ./seastar/install-dependencies.sh ./seastar/
@@ -26,5 +27,5 @@ RUN dnf -y update \
 RUN mkdir -p /root/.m2/repository
 ENV JAVA8_HOME=/usr/lib/jvm/java-1.8.0-openjdk
 ENV CLANG_ARCH=$TARGETARCH
-RUN chmod +x ./clang_lto_pgo.sh && ./clang_lto_pgo.sh
+RUN ./clang_lto_pgo.sh
 CMD /bin/bash

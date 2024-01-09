@@ -3,13 +3,11 @@
 if [ -z "${CLANG_ARCH}" ]; then
     echo "CLANG_ARCH is not defined"
 elif [ "${CLANG_ARCH}" != "amd64" ]; then
-    CLANG_ARCH=Aarch64
-    LLVM_TARGET="-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=Aarch64"
-    echo "Can't get ARM to work yet, exiting"
-    exit 1
+    CLANG_ARCH=AArch64
+    LLVM_TARGET="-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=AArch64;WebAssembly"
 else
     CLANG_ARCH=X86
-    LLVM_TARGET=""
+    LLVM_TARGET="-DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly"
 fi
 
 if [ -z "${CLANG_BUILD}" ]; then
@@ -27,6 +25,11 @@ else
 	exit 1
 fi
 
+if [ -z "${SCYLLA_REVISION}" ]; then
+    echo "Scylla revision is not specified"
+    exit 1
+fi
+
 if [ -d "/optimized_clang" ];
 then
         DIR="/optimized_clang"
@@ -39,10 +42,6 @@ cd "${DIR}"
 STAGE0_BIN=$DIR/stage-0-${CLANG_ARCH}/build/bin
 STAGE1_BIN=$DIR/stage-1-${CLANG_ARCH}/build/bin
 
-# Which Scylla branch to train on
-#SCYLLA_BRANCH=scylla-5.2.0-rc3
-SCYLLA_BRANCH=master
-
 # Which LLVM release to build in order to compile Scylla
 LLVM_SCYLLA_TAG=16.0.6
 
@@ -54,7 +53,7 @@ git clone https://github.com/llvm/llvm-project --branch llvmorg-${LLVM_CLANG_TAG
 cd stage-0-${CLANG_ARCH}
 
 USE_CURRENT_COMPILER=(-DCMAKE_C_COMPILER="/usr/bin/clang" -DCMAKE_CXX_COMPILER="/usr/bin/clang++" -DLLVM_USE_LINKER="/usr/bin/ld")
-COMMON_OPTS=(-DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=${CLANG_ARCH} -DLLVM_TARGET_ARCH=${CLANG_ARCH} -G Ninja -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF)
+COMMON_OPTS=(-DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD=all -DLLVM_TARGET_ARCH=${CLANG_ARCH} -G Ninja -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF)
 SCYLLA_OPTS=(--mode=dev --c-compiler="$STAGE1_BIN/clang" --compiler="$STAGE1_BIN/clang++" --disable-dpdk)
 
 echo "stage-0: build the bootstrapped compiler"
@@ -81,11 +80,15 @@ ls -l $DIR/stage-1-${CLANG_ARCH}/build/bin/
 cd ../
 # Download the scylla codebase for training.
 # Scylla's dependencies are already installed.
-git clone https://github.com/scylladb/scylla --branch ${SCYLLA_BRANCH} --depth=1 scylla-${CLANG_ARCH}
-git -C scylla-${CLANG_ARCH} submodule update --init --depth=1 --recursive -f
+mkdir scylla-${CLANG_ARCH}
+cd scylla-${CLANG_ARCH}
+git init
+git remote add origin https://github.com/scylladb/scylla
+git fetch origin ${SCYLLA_REVISION}
+git reset --hard FETCH_HEAD
+git submodule update --init --depth=1 --recursive -f
 
 # 1st ScyllaDB compilation: gather a clang profile for PGO
-cd scylla-${CLANG_ARCH}
 rm -rf build build.ninja
 ./configure.py "${SCYLLA_OPTS}"
 time ninja build/dev/scylla

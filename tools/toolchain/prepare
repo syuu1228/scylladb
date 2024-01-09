@@ -54,15 +54,16 @@ EOF
     exit 1
 }
 
+SCYLLA_REVISION=$(git show --format='%H' --no-patch)
 CLANG_CMD="--build-arg CLANG_BUILD=SKIP"
 while [ $# -gt 0 ]; do
     case "$1" in
         "--clang_install")
-	    CLANG_CMD="--build-arg CLANG_BUILD=INSTALL"
+	    CLANG_CMD="--build-arg CLANG_BUILD=INSTALL --build-arg SCYLLA_REVISION=$SCYLLA_REVISION"
             shift 1
             ;;
         "--clang_build")
-	    CLANG_CMD="--build-arg CLANG_BUILD=BUILD -v $2:/optimized_clang:Z"
+	    CLANG_CMD="--build-arg CLANG_BUILD=BUILD --build-arg SCYLLA_REVISION=$SCYLLA_REVISION -v $2:/optimized_clang:Z"
             shift 2
             ;;
         "--help")
