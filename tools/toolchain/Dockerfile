@@ -15,7 +15,7 @@ ADD ./tools/jmx/install-dependencies.sh ./tools/jmx/
 ADD ./tools/java/install-dependencies.sh ./tools/java/
 ADD ./tools/toolchain/clang_lto_pgo.sh ./
 ADD ./tools/toolchain/system-auth ./
-ADD ./build/scylla-archive.tar ./scylla/
+ADD ./build/scylla-archive.tar /optimized_clang/scylla/
 RUN dnf -y update \
     && dnf -y install 'dnf-command(copr)' \
     && dnf -y install ccache \

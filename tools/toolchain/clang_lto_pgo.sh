@@ -118,7 +118,7 @@ time cmake --build build -- bin/clang
 #$STAGE0_BIN/merge-fdata build/profiles/*.fdata > prof.fdata
 #$STAGE0_BIN/llvm-bolt build/bin/clang.prebolt -o build/bin/clang --data=prof.fdata --reorder-functions=hfsort --reorder-blocks=ext-tsp --split-functions --split-all-cold --split-eh --dyno-stats
 
-rm -rf ../scylla
+#rm -rf ../scylla
 
 # Then use the below to replace your inferior compiler
 if [ "${CLANG_BUILD}" = "INSTALL" ]; then
@@ -130,5 +130,5 @@ else
     echo "optimized clang was copied"
 fi
 
-cd ../
-rm -rf $DIR/stage-1-${CLANG_ARCH} $DIR/scylla
+#cd ../
+#rm -rf $DIR/stage-1-${CLANG_ARCH} $DIR/scylla
