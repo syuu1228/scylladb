@@ -56,26 +56,30 @@ if [[ "${CLANG_BUILD}" = "INSTALL" ]]; then
     cmake -B build -S llvm "${CLANG_OPTS[@]}" -DLLVM_BUILD_INSTRUMENTED=IR
     ninja -C build
 
+#    echo "[disk usage] profiles:$(du -sch ${CLANG_BUILD_DIR}/build/profiles) clang:$(du -sch ${CLANG_BUILD_DIR}) scylla:$(du -sch ${SCYLLA_BUILD_DIR})"
     rm -rf "${SCYLLA_BUILD_DIR}" "${SCYLLA_NINJA_FILE}"
     cd "${SCYLLA_DIR}"
     ./configure.py "${SCYLLA_OPTS[@]}"
-    LLVM_PROFILE_FILE="${CLANG_BUILD_DIR}"/build/profiles/default_%p-%m.profraw ninja -f "${SCYLLA_NINJA_FILE}" build
+    LLVM_PROFILE_FILE="${CLANG_BUILD_DIR}"/build/profiles/default_%p-%m.profraw ninja -f "${SCYLLA_NINJA_FILE}" compiler-training
 
     cd "${CLANG_BUILD_DIR}"
     llvm-profdata merge "${CLANG_BUILD_DIR}"/build/profiles/default_*.profraw -output=ir.prof
+    echo "[disk usage] profiles:$(du -sch ${CLANG_BUILD_DIR}/build/profiles) clang:$(du -sch ${CLANG_BUILD_DIR}) scylla:$(du -sch ${SCYLLA_BUILD_DIR})"
     rm -rf build
     cmake -B build -S llvm "${CLANG_OPTS[@]}" -DLLVM_BUILD_INSTRUMENTED=CSIR -DLLVM_PROFDATA_FILE="$(realpath ir.prof)"
     ninja -C build
 
     # 2nd compilation: gathering a clang profile for CSPGO
+    echo "[disk usage] profiles:$(du -sch ${CLANG_BUILD_DIR}/build/profiles) clang:$(du -sch ${CLANG_BUILD_DIR}) scylla:$(du -sch ${SCYLLA_BUILD_DIR})"
     rm -rf "${SCYLLA_BUILD_DIR}" "${SCYLLA_NINJA_FILE}"
     cd "${SCYLLA_DIR}"
     ./configure.py "${SCYLLA_OPTS[@]}"
-    LLVM_PROFILE_FILE="${CLANG_BUILD_DIR}"/build/profiles/csir-%p-%m.profraw ninja -f "${SCYLLA_NINJA_FILE}" build
+    LLVM_PROFILE_FILE="${CLANG_BUILD_DIR}"/build/profiles/csir-%p-%m.profraw ninja -f "${SCYLLA_NINJA_FILE}" compiler-training
 
     cd "${CLANG_BUILD_DIR}"
     llvm-profdata merge build/csprofiles/default_*.profraw -output=csir.prof
     llvm-profdata merge ir.prof csir.prof -output=combined.prof
+    echo "[disk usage] profiles:$(du -sch ${CLANG_BUILD_DIR}/build/profiles) clang:$(du -sch ${CLANG_BUILD_DIR}) scylla:$(du -sch ${SCYLLA_BUILD_DIR})"
     rm -rf build
     # -DLLVM_LIBDIR_SUFFIX=64 for Fedora compatibility
     cmake -B build -S llvm "${CLANG_OPTS[@]}" -DLLVM_PROFDATA_FILE="$(realpath combined.prof)" -DCMAKE_EXE_LINKER_FLAGS="-Wl,--emit-relocs" -DCMAKE_INSTALL_PREFIX=/usr/local -DLLVM_LIBDIR_SUFFIX=64
@@ -89,10 +93,11 @@ if [[ "${CLANG_BUILD}" = "INSTALL" ]]; then
         llvm-bolt build/bin/clang-"${CLANG_SUFFIX}".prebolt -o build/bin/clang-"${CLANG_SUFFIX}" --instrument --instrumentation-file="${CLANG_BUILD_DIR}"/build/profiles/prof --instrumentation-file-append-pid --conservative-instrumentation
 
         # 3rd ScyllaDB compilation: gathering a clang profile for BOLT
+        echo "[disk usage] profiles:$(du -sch ${CLANG_BUILD_DIR}/build/profiles) clang:$(du -sch ${CLANG_BUILD_DIR}) scylla:$(du -sch ${SCYLLA_BUILD_DIR})"
         rm -rf "${SCYLLA_BUILD_DIR}" "${SCYLLA_NINJA_FILE}"
         cd "${SCYLLA_DIR}"
         ./configure.py "${SCYLLA_OPTS[@]}"
-        ninja -f "${SCYLLA_NINJA_FILE}" build
+        ninja -f "${SCYLLA_NINJA_FILE}" compiler-training
 
         cd "${CLANG_BUILD_DIR}"
         merge-fdata build/profiles/*.fdata > prof.fdata
@@ -100,6 +105,7 @@ if [[ "${CLANG_BUILD}" = "INSTALL" ]]; then
     fi
 
     cd "${CLANG_ROOT_DIR}"
+    echo "[disk usage] profiles:$(du -sch ${CLANG_BUILD_DIR}/build/profiles) clang:$(du -sch ${CLANG_BUILD_DIR}) scylla:$(du -sch ${SCYLLA_BUILD_DIR})"
     rm -rf "${CLANG_BUILD_DIR}"/{build/profiles,*.prof,prof.fdata}
     tar -cpzf "${CLANG_ARCHIVE}" "${CLANG_CHECKOUT_NAME}"
 elif [[ "${CLANG_BUILD}" = "INSTALL_FROM" ]]; then
@@ -114,4 +120,5 @@ mv /usr/lib64/libLTO.so."${CLANG_SUFFIX}" /usr/lib64/libLTO.so."${CLANG_SUFFIX}"
 install -Z -m755 "${CLANG_BUILD_DIR}"/build/bin/clang-"${CLANG_SUFFIX}" /usr/bin/clang-"${CLANG_SUFFIX}"
 install -Z -m755 "${CLANG_BUILD_DIR}"/build/bin/lld /usr/bin/lld
 install -Z -m755 "${CLANG_BUILD_DIR}"/build/lib64/libLTO.so."${CLANG_SUFFIX}" /usr/lib64/libLTO.so."${CLANG_SUFFIX}"
+echo "[disk usage] profiles:$(du -sch ${CLANG_BUILD_DIR}/build/profiles) clang:$(du -sch ${CLANG_BUILD_DIR}) scylla:$(du -sch ${SCYLLA_BUILD_DIR})"
 rm -rf "${CLANG_BUILD_DIR}" "${SCYLLA_BUILD_DIR}" "${SCYLLA_NINJA_FILE}"
