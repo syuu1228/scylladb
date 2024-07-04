@@ -35,7 +35,6 @@ SCYLLA_DIR=/mnt
 CLANG_ROOT_DIR="${SCYLLA_DIR}"/clang_build
 CLANG_CHECKOUT_NAME=llvm-project
 CLANG_BUILD_DIR="${CLANG_ROOT_DIR}"/"${CLANG_CHECKOUT_NAME}"
-STAGE1_BIN="${CLANG_BUILD_DIR}"/stage1/bin
 
 SCYLLA_BUILD_DIR=build_profile
 SCYLLA_NINJA_FILE=build_profile.ninja
@@ -48,42 +47,30 @@ CLANG_SUFFIX=18
 
 CLANG_ARCHIVE=$(cd "${SCYLLA_DIR}" && realpath -m "${CLANG_ARCHIVE}")
 
-STAGE1_OPTS=(
+CLANG_OPTS=(
+    -G Ninja
+    -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_C_COMPILER="/usr/bin/clang"
     -DCMAKE_CXX_COMPILER="/usr/bin/clang++"
     -DLLVM_USE_LINKER="/usr/bin/ld.lld"
-    -DLLVM_TARGETS_TO_BUILD="${LLVM_TARGET_ARCH}"
-    -DLLVM_ENABLE_PROJECTS="clang;lld;bolt"
-    -DCOMPILER_RT_BUILD_SANITIZERS=OFF
-    -DCOMPILER_RT_BUILD_XRAY=OFF
-    -DCOMPILER_RT_BUILD_LIBFUZZER=OFF
-    -DCOMPILER_RT_DEFAULT_TARGET_ONLY=ON
-    -DCMAKE_INSTALL_PREFIX="${CLANG_BUILD_DIR}"/stage1
-)
-STAGEX_OPTS=(
-    -DCMAKE_C_COMPILER="${STAGE1_BIN}/clang"
-    -DCMAKE_CXX_COMPILER="${STAGE1_BIN}/clang++"
-    -DLLVM_USE_LINKER="${STAGE1_BIN}/ld.lld"
     -DLLVM_TARGETS_TO_BUILD="${LLVM_TARGET_ARCH};WebAssembly"
-    -DLLVM_ENABLE_PROJECTS="clang"
-    -DLLVM_ENABLE_LTO=Thin
-    -DCLANG_DEFAULT_PIE_ON_LINUX=OFF
-    -DLLVM_BUILD_TOOLS=OFF
-    -DLLVM_BUILD_LLVM_DYLIB=ON
-    -DLLVM_LINK_LLVM_DYLIB=ON
-    -DCMAKE_INSTALL_PREFIX="/usr/local"
-    -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON
-)
-COMMON_OPTS=(
-    -G Ninja
-    -DCMAKE_BUILD_TYPE=Release
     -DLLVM_TARGET_ARCH="${LLVM_TARGET_ARCH}"
     -DLLVM_INCLUDE_BENCHMARKS=OFF
     -DLLVM_INCLUDE_EXAMPLES=OFF
     -DLLVM_INCLUDE_TESTS=OFF
     -DLLVM_ENABLE_BINDINGS=OFF
+    -DLLVM_ENABLE_PROJECTS="clang"
     -DLLVM_ENABLE_RUNTIMES="compiler-rt"
+    -DLLVM_ENABLE_LTO=Thin
+    -DCLANG_DEFAULT_PIE_ON_LINUX=OFF
+    -DLLVM_BUILD_TOOLS=OFF
     -DLLVM_VP_COUNTERS_PER_SITE=6
+    -DLLVM_BUILD_LLVM_DYLIB=ON
+    -DLLVM_LINK_LLVM_DYLIB=ON
+    -DCMAKE_INSTALL_PREFIX="/usr/local"
+    -DLLVM_LIBDIR_SUFFIX=64
+    -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON
+
 )
 SCYLLA_OPTS=(
     --date-stamp "$(date "+%Y%m%d")"
@@ -138,20 +125,15 @@ if [[ "${CLANG_BUILD}" = "INSTALL" ]]; then
     rm -rf "${CLANG_BUILD_DIR}"
     git clone https://github.com/llvm/llvm-project --branch llvmorg-"${LLVM_CLANG_TAG}" --depth=1 "${CLANG_BUILD_DIR}"
 
-    echo "[clang-stage1] build the bootstrap compiler"
+    echo "[clang-stage1] build the compiler for collecting PGO profile"
     cd "${CLANG_BUILD_DIR}"
-    cmake -B build -S llvm "${STAGE1_OPTS[@]}" "${COMMON_OPTS[@]}"
-    ninja -C build
-    ninja -C build install
-
-    echo "[clang-stage2] the compiler for collecting PGO profile"
     rm -rf build
-    cmake -B build -S llvm "${STAGEX_OPTS[@]}" "${COMMON_OPTS[@]}" -DLLVM_BUILD_INSTRUMENTED=IR
+    cmake -B build -S llvm "${CLANG_OPTS[@]}" -DLLVM_BUILD_INSTRUMENTED=IR
     DISTRIBUTION_COMPONENTS=$(cd build && _get_distribution_components | paste -sd\;)
+    echo "DISTRIBUTION_COMPONENTS: ${DISTRIBUTION_COMPONENTS}"
     test -n "${DISTRIBUTION_COMPONENTS}"
-    echo "${DISTRIBUTION_COMPONENTS}"
-    STAGEX_OPTS+=(-DLLVM_DISTRIBUTION_COMPONENTS="${DISTRIBUTION_COMPONENTS}")
-    cmake -B build -S llvm "${STAGEX_OPTS[@]}" "${COMMON_OPTS[@]}" -DLLVM_BUILD_INSTRUMENTED=IR
+    CLANG_OPTS+=(-DLLVM_DISTRIBUTION_COMPONENTS="${DISTRIBUTION_COMPONENTS}")
+    cmake -B build -S llvm "${CLANG_OPTS[@]}" -DLLVM_BUILD_INSTRUMENTED=IR
     ninja -C build
 
     echo "[scylla-stage1] gather a clang profile for PGO"
@@ -160,11 +142,11 @@ if [[ "${CLANG_BUILD}" = "INSTALL" ]]; then
     ./configure.py "${SCYLLA_OPTS[@]}"
     LLVM_PROFILE_FILE="${CLANG_BUILD_DIR}"/build/profiles/default_%p-%m.profraw ninja -f "${SCYLLA_NINJA_FILE}" compiler-training
 
-    echo "[clang-stage3] the compiler applied PGO profile and for collecting CSPGO profile"
+    echo "[clang-stage2] build the compiler applied PGO profile and for collecting CSPGO profile"
     cd "${CLANG_BUILD_DIR}"
-    "${STAGE1_BIN}"/llvm-profdata merge "${CLANG_BUILD_DIR}"/build/profiles/default_*.profraw -output=ir.prof
+    llvm-profdata merge "${CLANG_BUILD_DIR}"/build/profiles/default_*.profraw -output=ir.prof
     rm -rf build
-    cmake -B build -S llvm "${STAGEX_OPTS[@]}" "${COMMON_OPTS[@]}" -DLLVM_BUILD_INSTRUMENTED=CSIR -DLLVM_PROFDATA_FILE="$(realpath ir.prof)"
+    cmake -B build -S llvm "${CLANG_OPTS[@]}" -DLLVM_BUILD_INSTRUMENTED=CSIR -DLLVM_PROFDATA_FILE="$(realpath ir.prof)"
     ninja -C build
 
     echo "[scylla-stage2] gathering a clang profile for CSPGO"
@@ -173,13 +155,13 @@ if [[ "${CLANG_BUILD}" = "INSTALL" ]]; then
     ./configure.py "${SCYLLA_OPTS[@]}"
     LLVM_PROFILE_FILE="${CLANG_BUILD_DIR}"/build/profiles/csir-%p-%m.profraw ninja -f "${SCYLLA_NINJA_FILE}" compiler-training
 
-    echo "[clang-stage4] the compiler applied CSPGO profile"
+    echo "[clang-stage3] build the compiler applied CSPGO profile"
     cd "${CLANG_BUILD_DIR}"
-    "${STAGE1_BIN}"/llvm-profdata merge build/csprofiles/default_*.profraw -output=csir.prof
-    "${STAGE1_BIN}"/llvm-profdata merge ir.prof csir.prof -output=combined.prof
+    llvm-profdata merge build/csprofiles/default_*.profraw -output=csir.prof
+    llvm-profdata merge ir.prof csir.prof -output=combined.prof
     rm -rf build
-    # -DLLVM_LIBDIR_SUFFIX=64 for Fedora compatibility
-    cmake -B build -S llvm "${STAGEX_OPTS[@]}" "${COMMON_OPTS[@]}" -DLLVM_PROFDATA_FILE="$(realpath combined.prof)" -DCMAKE_EXE_LINKER_FLAGS="-Wl,--emit-relocs" -DLLVM_LIBDIR_SUFFIX=64
+    # linker flags are needed for BOLT
+    cmake -B build -S llvm "${CLANG_OPTS[@]}" -DLLVM_PROFDATA_FILE="$(realpath combined.prof)" -DCMAKE_EXE_LINKER_FLAGS="-Wl,--emit-relocs,-znow"
     ninja -C build
 
     #TODO: skipping BOLT for aarch64 for now, since it causes segfault
@@ -188,7 +170,7 @@ if [[ "${CLANG_BUILD}" = "INSTALL" ]]; then
         cd "${CLANG_BUILD_DIR}"
         mv build/bin/clang-"${CLANG_SUFFIX}" build/bin/clang-"${CLANG_SUFFIX}".prebolt
         mkdir -p build/profiles
-        "${STAGE1_BIN}"/llvm-bolt build/bin/clang-"${CLANG_SUFFIX}".prebolt -o build/bin/clang-"${CLANG_SUFFIX}" --instrument --instrumentation-file="${CLANG_BUILD_DIR}"/build/profiles/prof --instrumentation-file-append-pid --conservative-instrumentation
+        llvm-bolt build/bin/clang-"${CLANG_SUFFIX}".prebolt -o build/bin/clang-"${CLANG_SUFFIX}" --instrument --instrumentation-file="${CLANG_BUILD_DIR}"/build/profiles/prof --instrumentation-file-append-pid --conservative-instrumentation
 
         echo "[scylla-stage3] gathering a clang profile for BOLT"
         rm -rf "${SCYLLA_BUILD_DIR_FULLPATH}" "${SCYLLA_NINJA_FILE_FULLPATH}"
@@ -196,10 +178,10 @@ if [[ "${CLANG_BUILD}" = "INSTALL" ]]; then
         ./configure.py "${SCYLLA_OPTS[@]}"
         ninja -f "${SCYLLA_NINJA_FILE}" compiler-training
 
-        echo "[bolt-stage2] generate final compiler applied BOLT profile"
+        echo "[bolt-stage2] generate the compiler applied BOLT profile"
         cd "${CLANG_BUILD_DIR}"
-        "${STAGE1_BIN}"/merge-fdata build/profiles/*.fdata > prof.fdata
-        "${STAGE1_BIN}"/llvm-bolt build/bin/clang-"${CLANG_SUFFIX}".prebolt -o build/bin/clang-"${CLANG_SUFFIX}" --data=prof.fdata --reorder-functions=hfsort --reorder-blocks=ext-tsp --split-functions --split-all-cold --split-eh --dyno-stats
+        merge-fdata build/profiles/*.fdata > prof.fdata
+        llvm-bolt build/bin/clang-"${CLANG_SUFFIX}".prebolt -o build/bin/clang-"${CLANG_SUFFIX}" --data=prof.fdata --reorder-functions=hfsort --reorder-blocks=ext-tsp --split-functions --split-all-cold --split-eh --dyno-stats
     fi
 
     cd "${CLANG_ROOT_DIR}"
