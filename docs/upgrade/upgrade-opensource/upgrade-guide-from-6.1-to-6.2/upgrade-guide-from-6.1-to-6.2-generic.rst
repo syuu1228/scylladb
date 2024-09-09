@@ -170,6 +170,7 @@ You should take note of the current version in case you want to |ROLLBACK|_ the 
                sudo apt-get clean all
                sudo apt-get update
                sudo apt-get dist-upgrade scylla
+               sudo apt-get purge scylla-jmx
 
 
         Answer ‘y’ to the first two questions.
@@ -183,6 +184,7 @@ You should take note of the current version in case you want to |ROLLBACK|_ the 
 
                sudo yum clean all
                sudo yum update scylla\* -y
+               sudo yum remove scylla-jmx
 
    .. group-tab:: EC2/GCP/Azure Ubuntu Image
 
@@ -201,6 +203,7 @@ You should take note of the current version in case you want to |ROLLBACK|_ the 
                sudo apt-get update
                sudo apt-get dist-upgrade scylla
                sudo apt-get dist-upgrade scylla-machine-image
+               sudo apt-get purge scylla-jmx
 
       #. Run ``scylla_setup`` without ``running io_setup``.
       #. Run ``sudo /opt/scylladb/scylla-machine-image/scylla_cloud_io_setup``.

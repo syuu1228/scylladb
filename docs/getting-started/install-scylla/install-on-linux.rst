@@ -72,7 +72,7 @@ Install ScyllaDB
 
             .. code-block:: console
     
-               apt-get install scylla{,-server,-jmx,-tools,-tools-core,-kernel-conf,-node-exporter,-conf,-python3}=<your patch version>
+               apt-get install scylla{,-server,-tools,-tools-core,-kernel-conf,-node-exporter,-conf,-python3}=<your patch version>
           
             The following example shows installing ScyllaDB 5.2.3.
 
@@ -88,7 +88,7 @@ Install ScyllaDB
             .. code-block:: console
                :class: hide-copy-button
     
-               apt-get install scylla{,-server,-jmx,-tools,-tools-core,-kernel-conf,-node-exporter,-conf,-python3}=5.2.3-0.20230608.ea08d409f155-1
+               apt-get install scylla{,-server,-tools,-tools-core,-kernel-conf,-node-exporter,-conf,-python3}=5.2.3-0.20230608.ea08d409f155-1
 
 
         #. (Ubuntu only) Set Java 11.
@@ -153,6 +153,54 @@ Install ScyllaDB
     
                sudo yum install scylla-5.2.3
 
+(Optional) Install scylla-jmx
+-------------------------------
+
+scylla-jmx becomes optional package from ScyllaDB 6.2, not installed by default.
+If you need keep using JMX server you can still install it from scylla-jmx
+GitHub page.
+
+.. tabs::
+
+   .. group-tab:: Debian/Ubuntu
+        #. Download .deb package from scylla-jmx page.
+
+            Access to https://github.com/scylladb/scylla-jmx, select latest
+            release from "releases", download a file end with ".deb".
+
+        #. (Optional) Transfer the downloaded package to the install node.
+
+            If the pc from which you downloaded the package is different from
+            the node where you install scylladb, you will need to transfer
+            the files to the node.
+
+        #. Install scylla-jmx package.
+
+            .. code-block:: console
+    
+               sudo apt install -y ./<package filename>.deb
+
+
+   .. group-tab:: Centos/RHEL
+
+        #. Download .rpm package from scylla-jmx page.
+
+            Access to https://github.com/scylladb/scylla-jmx, select latest
+            release from "releases", download a file end with ".rpm".
+
+        #. (Optional) Transfer the downloaded package to the install node.
+
+            If the pc from which you downloaded the package is different from
+            the node where you install scylladb, you will need to transfer
+            the files to the node.
+
+        #. Install scylla-rpm package.
+
+            .. code-block:: console
+    
+               sudo yum install -y ./<package filename>.rpm
+
+ 
 
 .. include:: /getting-started/_common/setup-after-install.rst
 
