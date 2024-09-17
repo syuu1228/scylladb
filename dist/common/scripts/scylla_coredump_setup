@@ -139,6 +139,14 @@ WantedBy=local-fs.target scylla-server.service
             coreinfo = run('coredumpctl --no-pager --no-legend info {}'.format(pid), shell=True, check=True, capture_output=True, encoding='utf-8').stdout.strip()
         except subprocess.CalledProcessError:
             print('Unable to detect coredump, failed to configure systemd-coredump.')
+            print('ausearch -m avc:')
+            run('ausearch -m avc', shell=True, check=True, stderr=sys.stdout.buffer)
+            print('ls -lZ /var/lib/scylla/:')
+            run('ls -lZ /var/lib/scylla/', shell=True, check=True, stderr=sys.stdout.buffer)
+            print('semodule -l')
+            run('semodule -l', shell=True, check=True, stderr=sys.stdout.buffer)
+            print('matchpathcon -n /var/lib/systemd/coredump')
+            run('matchpathcon -n /var/lib/systemd/coredump', shell=True, check=True, stderr=sys.stdout.buffer)
             sys.exit(1)
 
         print(coreinfo)
@@ -188,6 +196,14 @@ WantedBy=local-fs.target scylla-server.service
 
         if corefail:
             print('Does not able to detect coredump file, failed to configure systemd-coredump.')
+            print('ausearch -m avc:')
+            run('ausearch -m avc', shell=True, check=True, stderr=sys.stdout.buffer)
+            print('ls -lZ /var/lib/scylla/:')
+            run('ls -lZ /var/lib/scylla/', shell=True, check=True, stderr=sys.stdout.buffer)
+            print('semodule -l')
+            run('semodule -l', shell=True, check=True, stderr=sys.stdout.buffer)
+            print('matchpathcon -n /var/lib/systemd/coredump')
+            run('matchpathcon -n /var/lib/systemd/coredump', shell=True, check=True, stderr=sys.stdout.buffer)
             sys.exit(1)
 
         print('\nsystemd-coredump is working finely.')
