@@ -340,7 +340,10 @@ WantedBy=local-fs.target
         if not shutil.which('restorecon'):
             pkg_install('policycoreutils')
         if not shutil.which('semanage'):
-            pkg_install('policycoreutils-python-utils')
+            if is_amzn2():
+                pkg_install('policycoreutils-python')
+            else:
+                pkg_install('policycoreutils-python-utils')
         selinux_status = out('getenforce')
         selinux_context = out('matchpathcon -n /var/lib/systemd/coredump')
         selinux_type = selinux_context.split(':')[2]
