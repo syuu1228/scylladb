@@ -12,8 +12,6 @@ Architecture: any
 Description: Scylla database main configuration file
  Scylla is a highly scalable, eventually consistent, distributed,
  partitioned row DB.
-Replaces: %{product}-server (<< 1.1)
-Conflicts: %{product}-server (<< 1.1)
 
 Package: %{product}-server
 Architecture: any
