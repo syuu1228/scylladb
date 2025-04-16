@@ -45,7 +45,7 @@ future<sstring> generate_file_hash(sstring filename) {
 
 sstring generate_random_filename() {
     char filename[L_tmpnam];
-    std::tmpnam(filename);
+    std::ignore = std::tmpnam(filename);
     return filename;
 }
 

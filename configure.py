@@ -103,7 +103,10 @@ def have_pkg(package):
 
 
 def pkg_config(package, *options):
-    pkg_config_path = os.environ.get('PKG_CONFIG_PATH', '')
+    pkg_config_env = 'PKG_CONFIG_PATH'
+    if os.environ.get('PKG_CONFIG_PATH_FOR_TARGET'):
+        pkg_config_env = 'PKG_CONFIG_PATH_FOR_TARGET'
+    pkg_config_path = os.environ.get(pkg_config_env, '')
     # Add the directory containing the package to the search path, if a file is
     # specified instead of a name.
     if package.endswith('.pc'):
@@ -112,7 +115,7 @@ def pkg_config(package, *options):
 
     output = subprocess.check_output(['pkg-config'] + list(options) + [package],
                                      env = {**os.environ,
-                                            'PKG_CONFIG_PATH': pkg_config_path})
+                                            pkg_config_env: pkg_config_path})
 
     return output.decode('utf-8').strip()
 
@@ -2106,7 +2109,8 @@ kmip_lib_ver = '1.9.2a';
 def kmiplib():
     os_ids = get_os_ids()
     for id in os_ids:
-        if id in { 'centos', 'fedora', 'rhel' }:
+        # XXX: got 'linux' on nix for some reason
+        if id in { 'centos', 'fedora', 'rhel', 'linux' }:
             return 'rhel84'
     print('Could not resolve libkmip.a for platform {}'.format(os_ids))
     sys.exit(1)
@@ -2255,7 +2259,7 @@ def write_build_file(f,
         rule cxxbridge_header
             command = cxxbridge --header > $out
         rule c2wasm
-            command = clang --target=wasm32 --no-standard-libraries -Wl,--export-all -Wl,--no-entry $in -o $out
+            command = clang-19 --target=wasm32 --no-standard-libraries -Wl,--export-all -Wl,--no-entry $in -o $out
             description = C2WASM $out
         rule rust2wasm
             command = cargo build --target={rustc_target} --example=$example --locked --manifest-path=test/resource/wasm/rust/Cargo.toml --target-dir=$builddir/wasm/ $
