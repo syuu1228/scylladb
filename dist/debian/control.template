@@ -81,6 +81,14 @@ Section: oldlibs
 Description: transitional package
  This is a transitional package. It can safely be removed.
 
+Package: scylla-enterprise-server-dbg
+Depends: %{product}-server-dbg (= ${binary:Version})
+Architecture: all
+Priority: optional
+Section: oldlibs
+Description: transitional package
+ This is a transitional package. It can safely be removed.
+
 Package: scylla-enterprise
 Depends: %{product} (= ${binary:Version})
 Architecture: all
