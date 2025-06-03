@@ -10,7 +10,7 @@ from test.pylib.internal_types import HostID, ServerInfo, ServerNum
 from test.pylib.manager_client import ManagerClient
 from test.pylib.rest_client import inject_error_one_shot, HTTPError, read_barrier
 from test.pylib.util import wait_for_cql_and_get_hosts, unique_name
-from test.pylib.tablets import get_tablet_replica, get_all_tablet_replicas, TabletReplicas
+from test.pylib.tablets import get_tablet_replica, get_all_tablet_replicas
 from test.cluster.conftest import skip_mode
 from test.cluster.util import reconnect_driver, create_new_test_keyspace, new_test_keyspace
 from test.cqlpy.cassandra_tests.validation.entities.secondary_index_test import dotestCreateAndDropIndex
@@ -1852,6 +1852,7 @@ async def test_tablet_cleanup_vs_snapshot_race(manager: ManagerClient):
         await s0_log.wait_for('Cleanup failed for tablet', from_mark=s0_mark)
 
         await manager.api.take_snapshot(servers[0].ip_addr, ks, "test_snapshot")
+<<<<<<< HEAD
 
 # Reproduces assert failure when truncating table, either triggered by DROP TABLE or TRUNCATE.
 # See: https://github.com/scylladb/scylladb/issues/18059
